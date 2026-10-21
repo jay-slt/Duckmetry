@@ -1,0 +1,78 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Duckmetry.Core\Duckmetry.Core.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!--
+    Release versioning. The project file itself is named Duckmetry.Cli.csproj, so
+    MSBuild would otherwise emit Duckmetry.Cli.exe. Set Version below and override
+    AssemblyName to Duckmetry.Cli.<version> so each published exe identifies itself:
+        Duckmetry.Cli.2.16.0.exe
+    Release scripts pass /p:Version=<tag> to keep the two in step.
+  -->
+
+  <!--
+    Publish settings, kept here rather than on the command line so that every publish
+    produces the same shape by default.
+
+    IncludeNativeLibrariesForSelfExtract is REQUIRED. A single-file publish cannot embed
+    a native library by default: duckdb.dll (36 MB, loaded by DuckDB.NET at runtime) is
+    written BESIDE the exe instead, and the exe alone does not work without it.
+
+    That is exactly how v2.16.0 shipped. The release carried one asset, the .exe, so every
+    conversion failed identically:
+
+        [Error] Conversion failed for <file>: Object reference not set to an instance of
+        an object.
+
+    Reproduced and confirmed: with duckdb.dll beside the exe the same build converts
+    normally; with the exe alone it throws
+        System.NullReferenceException
+           at DuckDB.NET.Data.DuckDBConnectionStringBuilder.set_Item(String, Object)
+           at System.Data.Common.DbConnectionStringBuilder.set_ConnectionString(String)
+           at DuckDB.NET.Data.DuckDBConnection.Open()
+    The managed wrapper dereferences a field its own static initialiser left null because
+    the native library was not there to initialise it, so the null surfaces four frames
+    away from the real cause - which is why it read as a mystery rather than a packaging
+    fault. v2.15.0 was 108 MB because it shipped as a folder with duckdb.dll beside it.
+
+    With this set, the single exe is self-sufficient: 108,543,350 bytes, no siblings.
+  -->
+  <PropertyGroup>
+    <Version>1.0</Version>
+    <AssemblyName>Duckmetry.Cli.$(Version)</AssemblyName>
+    <!-- The exe's icon in Explorer/taskbar (Windows publishes only). -->
+    <ApplicationIcon>..\..\assets\duckmetry.ico</ApplicationIcon>
+
+    <!--
+      Windows shows these in the file's Properties dialog and in the task manager. They
+      are the first thing a user sees when something goes wrong, so they have to state
+      what the tool is without implying it belongs to either company whose formats it
+      reads. The banner and the About box carry the full non-affiliation notice.
+    -->
+    <Product>Duckmetry - unofficial community converter</Product>
+    <Company>Independent community project</Company>
+    <Copyright>Copyright (c) 2026 jay-slt. Not affiliated with MoTeC Ltd or Studio 397.</Copyright>
+    <Description>Converts locally recorded DuckDB telemetry into i2-readable .ld/.ldx files. Independent tool; not endorsed by MoTeC Ltd or Studio 397.</Description>
+    <FileVersion>$(Version)</FileVersion>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <InformationalVersion>$(Version)</InformationalVersion>
+
+    <!-- Publish shape. See the note above: without IncludeNativeLibrariesForSelfExtract
+         the single exe is missing duckdb.dll and every conversion fails. -->
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishTrimmed>false</PublishTrimmed>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+</Project>

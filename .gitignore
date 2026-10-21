@@ -1,0 +1,16 @@
+# Build output
+dist/
+bin/
+obj/
+*.user
+# probe build output
+tools/DuckmetryProbe/out/
+tools/DuckmetryProbe/bin/
+tools/DuckmetryProbe/obj/
+tools/DuckmetryStageProbe/out/
+tools/DuckmetryStageProbe/bin/
+tools/DuckmetryStageProbe/obj/
+
+# python bytecode
+__pycache__/
+*.pyc
