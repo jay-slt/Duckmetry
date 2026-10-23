@@ -28,7 +28,7 @@
     The GUI is the merged app - no args -> the window; args -> headless CLI.
   -->
   <PropertyGroup>
-    <Version>1.0</Version>
+    <Version>1.0.1</Version>
     <AssemblyName>Duckmetry.$(Version)</AssemblyName>
 
     <Product>Duckmetry - unofficial community converter</Product>
