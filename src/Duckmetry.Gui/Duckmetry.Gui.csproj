@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Duckmetry.Core\Duckmetry.Core.csproj" />
+  </ItemGroup>
+
+  <!-- The user's artwork: the exe's icon (Explorer/taskbar) and the embedded copies
+       the window and the tray icon load at runtime (assets/*.ico generated from
+       assets/*.jpg by tools/make_icons.py). -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\assets\duckmetry.ico" LogicalName="duckmetry.ico" />
+    <EmbeddedResource Include="..\..\assets\duckmetry_tray.ico" LogicalName="duckmetry_tray.ico" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Cross-compiling the Windows target from a non-Windows host (CI/dev box). -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ApplicationIcon>..\..\assets\duckmetry.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!--
+    Same release versioning as the console app: the exe identifies itself.
+    The GUI is the merged app - no args -> the window; args -> headless CLI.
+  -->
+  <PropertyGroup>
+    <Version>1.0</Version>
+    <AssemblyName>Duckmetry.$(Version)</AssemblyName>
+
+    <Product>Duckmetry - unofficial community converter</Product>
+    <Company>Independent community project</Company>
+    <Copyright>Copyright (c) 2026 jay-slt. Not affiliated with MoTeC Ltd or Studio 397.</Copyright>
+    <Description>Converts locally recorded DuckDB telemetry into i2-readable .ld/.ldx files, with auto mode and sorted output. Independent tool; not endorsed by MoTeC Ltd or Studio 397.</Description>
+    <FileVersion>$(Version)</FileVersion>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <InformationalVersion>$(Version)</InformationalVersion>
+
+    <!-- Open-source friendliness: embed the PDB into the assembly so the published
+         single-file exe carries line numbers and a debugger can attach to it. -->
+    <DebugType>embedded</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishTrimmed>false</PublishTrimmed>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+</Project>
