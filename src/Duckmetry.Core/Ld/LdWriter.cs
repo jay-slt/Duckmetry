@@ -327,10 +327,13 @@ public static class LdWriter
     /// decode back to the originals.
     /// </summary>
     /// <remarks>
-    /// i2 decodes int16 as <c>value = (raw + shift) * multiplier / 10^decimals</c>.
-    /// We pick the encoding that represents the channel's value range with minimal
-    /// precision loss, preferring int16 because that is what the reference uses for
-    /// every lap and counter channel.
+    /// A stored sample decodes as
+    ///     value = raw * multiplier / (10^decimals * scale) + shift
+    /// with the shift added AFTER the scaling, not before. We pick the encoding that
+    /// represents the channel's value range with minimal precision loss, preferring
+    /// int16 because that is what the reference uses for every lap and counter channel.
+    /// Channels that have a standard i2 ID use the genuine per-ID numbers transcribed
+    /// in <see cref="QuantById"/>; channels without one get the computed fallback below.
     ///
     /// The shift is chosen per channel rather than fixed. The reference uses
     /// shift 0 for counters and flags, and a shift near 32760 for the elapsed-time
@@ -338,25 +341,42 @@ public static class LdWriter
     /// raw value ~-32760, which i2 may read as an out-of-range marker; the
     /// "Lap Number"-style channels must have shift 0.
     /// </remarks>
-        /// <summary>
-    /// i2's own quantisation per standard channel ID:
-    /// (dtype_a, width, shift, multiplier, scale, decimals).
+    /// <summary>
+    /// i2's own quantisation per standard channel ID — the exact six numbers its files
+    /// carry in the channel header (fields 0x12..0x1E), keyed by the standard channel
+    /// ID from <see cref="ChannelIds"/>.
     /// </summary>
     /// <remarks>
-    /// A stored sample decodes as
-    ///     value = raw * Multiplier / 10^Decimals + Shift
-    /// and i2 reads those numbers from the header, not from our intent. We were
-    /// choosing them ourselves, which is why some values came out far too high: a
-    /// channel i2 decodes at 10^-5 with a multiplier of 4 is not the same as one at
-    /// 10^-2 with a multiplier of 1.
+    /// Each row is the six header fields <c>(dtype, width, shift, multiplier, scale,
+    /// decimals)</c>:
+    ///   0x12 dtype       data-type code i2 uses to interpret the block
+    ///                    (5 = measured-value type, 3 = counter/percent type,
+    ///                     0 = the special Beacon marker).
+    ///   0x14 width       bytes per sample in the data block: 1 (int8), 2 (int16), 4 (int32).
+    ///   0x18 shift       per-channel offset, a VALUE added back after decoding;
+    ///                    arbitrary — chosen so the raw integers fit the channel's
+    ///                    signed width (Engine RPM 31280, Ground Speed 24400, temps −16720).
+    ///   0x1A multiplier  scales the decoded value (usually 1; 2 for speed/RPM).
+    ///   0x1C scale       extra divisor in i2's decode — NOT always 1
+    ///                    (temperature channels use 50, load/downforce use 2).
+    ///   0x1E decimals    powers of ten on decode (the stored precision).
     ///
-    /// There is no formula to derive - the shift is arbitrary, picked so the raw integers
-    /// stay small - so this is transcribed from two genuine i2-written logs, which
-    /// AGREE on all 238 IDs. For example:
+    /// A stored raw integer decodes as
+    ///     value = raw * multiplier / (10^decimals * scale) + shift
+    /// and i2 reads these six numbers from the header — not from our intent.
+    /// <see cref="EncodeSamples"/> is the exact inverse:
+    ///     raw = (value - shift) * 10^decimals * scale / multiplier  (clamped to width)
+    ///
+    /// There is no formula that derives them — the shift in particular is arbitrary,
+    /// picked so the raw values stay inside the signed width — so this table is
+    /// TRANSCRIBED from two genuine i2-written logs, which agree on all 238 IDs:
     ///     ID 9   Ground Speed  (5, 4,  24400, 2, 1, 5)
     ///     ID 1   Brake Temp FL (5, 4, -16720, 4, 1, 5)
     ///     ID 5   Engine RPM    (5, 4,  31280, 2, 1, 4)
-    /// Channels with no standard ID keep the computed fallback in <see cref="Quantise"/>.
+    /// A channel decoded at the wrong scale reads far off (a 10^-5 channel with
+    /// multiplier 4 is not the same as a 10^-2 channel with multiplier 1), which is
+    /// what makes this table load-bearing rather than cosmetic. Channels with no
+    /// standard ID keep the computed fallback in <see cref="Quantise"/>.
     /// </remarks>
     private static readonly Dictionary<ushort, (ushort DType, ushort Width, short Shift,
         short Multiplier, short Scale, short Decimals)> QuantById = new()
@@ -601,7 +621,7 @@ public static class LdWriter
         [8211] = (5, 4, -16720, 4, 1, 5),
     };
 
-private readonly record struct Quantisation(
+    private readonly record struct Quantisation(
         ushort DType, ushort ElementSize, short Shift, short Multiplier, short Scale,
         short Decimals, int[] Raw, int RawMax, int RawMin);
 
@@ -609,11 +629,11 @@ private readonly record struct Quantisation(
     /// Encodes samples using i2's own quantisation - the exact inverse of its decode.
     /// </summary>
     /// <remarks>
-    /// The decode is  value = raw * multiplier / 10^decimals + shift  and the shift is
-    /// added AFTER the scaling, not before. That ordering is the whole thing: reading it
-    /// as (raw + shift) * multiplier / 10^decimals puts the genuine log's Ground Speed
-    /// samples at -24,400 km/h instead of 0. Verified against the real DuckDB ranges for
-    /// speed, both brake temperatures, engine RPM and throttle.
+    /// The decode is  value = raw * multiplier / (10^decimals * scale) + shift  and the
+    /// shift is added AFTER the scaling, not before. That ordering is the whole thing:
+    /// reading it as (raw + shift) * multiplier / 10^decimals puts the genuine log's
+    /// Ground Speed samples at -24,400 km/h instead of 0. Verified against the real
+    /// DuckDB ranges for speed, both brake temperatures, engine RPM and throttle.
     ///
     /// Raw samples are clamped to the channel's declared width rather than wrapped: a
     /// wrapped sample decodes as a wildly wrong value, which is worse than a saturated

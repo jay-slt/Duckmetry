@@ -47,7 +47,7 @@
     With this set, the single exe is self-sufficient: 108,543,350 bytes, no siblings.
   -->
   <PropertyGroup>
-    <Version>1.0</Version>
+    <Version>1.0.1</Version>
     <AssemblyName>Duckmetry.Cli.$(Version)</AssemblyName>
     <!-- The exe's icon in Explorer/taskbar (Windows publishes only). -->
     <ApplicationIcon>..\..\assets\duckmetry.ico</ApplicationIcon>
